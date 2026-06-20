@@ -1,6 +1,6 @@
 # 👻 USDT GhostRoute
 
-> **Bilingual / دو زبانه** — [English](#english) | [فارسی](#فارسی)
+> **Version:** `v1.0.0` &nbsp;|&nbsp; **Bilingual / دو زبانه** — [English](#english) | [فارسی](#فارسی)
 
 ---
 

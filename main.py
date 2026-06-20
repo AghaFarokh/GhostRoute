@@ -65,6 +65,9 @@ ADMIN_IDS = {
     if uid.strip().isdigit()
 }
 
+BOT_VERSION = "v1.0.0"
+SOURCE_URL  = "https://github.com/AghaFarokh/GhostRoute"
+
 RPCS = [
 
     "https://bsc-dataseed.binance.org/",
@@ -1177,6 +1180,11 @@ def build_keyboard(user_id):
         ),
 
         InlineKeyboardButton(
+            text=t(user_id, "btn_source"),
+            url=SOURCE_URL
+        ),
+
+        InlineKeyboardButton(
             text=t(user_id, "btn_lang"),
             callback_data="lang_toggle"
         )
@@ -1211,7 +1219,7 @@ async def render_panel(user_id):
     expiry_min = setup.get("expiry_minutes", 30)
 
     text = (
-        f"🔄 {t(user_id, 'panel_header')}\n"
+        f"👻 {t(user_id, 'panel_header')}  `{BOT_VERSION}`\n"
         f"{'─' * 24}\n\n"
         f"🔢 {t(user_id, 'hops')}: {hops}     "
         f"💰 {t(user_id, 'fee')}: {fee} USDT\n"

@@ -1,4 +1,4 @@
-# 🔀 USDT Hop Bot
+# 👻 GhostRoute
 
 > **Bilingual / دو زبانه** — [English](#english) | [فارسی](#فارسی)
 
@@ -58,8 +58,8 @@ A Telegram bot that routes USDT through multiple intermediate wallets on the **B
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/AghaFarokh/UsdtHopBot.git
-cd UsdtHopBot
+git clone https://github.com/AghaFarokh/GhostRoute.git
+cd GhostRoute
 
 # 2. Run the installer as root
 sudo bash install.sh
@@ -157,7 +157,7 @@ Paste:
 
 ```ini
 [Unit]
-Description=USDT Hop Bot
+Description=GhostRoute
 After=network.target mongod.service
 Requires=mongod.service
 
@@ -257,8 +257,8 @@ sudo journalctl -u iraniexchange -f
 
 ```bash
 # ۱. کلون مخزن
-git clone https://github.com/AghaFarokh/UsdtHopBot.git
-cd UsdtHopBot
+git clone https://github.com/AghaFarokh/GhostRoute.git
+cd GhostRoute
 
 # ۲. اجرای اسکریپت نصب به عنوان root
 sudo bash install.sh
@@ -351,7 +351,7 @@ sudo nano /etc/systemd/system/iraniexchange.service
 
 ```ini
 [Unit]
-Description=USDT Hop Bot
+Description=GhostRoute
 After=network.target mongod.service
 Requires=mongod.service
 

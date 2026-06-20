@@ -91,7 +91,7 @@ STRINGS = {
 
     "en": {
         # ── Panel ──────────────────────────────────────────────────
-        "panel_header":   "USDT HOP BOT",
+        "panel_header":   "GHOST ROUTE",
         "hops":           "Hops",
         "hops_btn":       "HOPS",
         "fee":            "Fee",
@@ -155,7 +155,7 @@ STRINGS = {
 
         # ── Info ──────────────────────────────────────────────────
         "info_text": (
-            "ℹ️ *About USDT Hop Bot*\n\n"
+            "ℹ️ *About GhostRoute*\n\n"
             "This bot routes your USDT through multiple intermediate wallets "
             "on the BSC network, making transactions harder to trace.\n\n"
             "🔄 *How it works:*\n"

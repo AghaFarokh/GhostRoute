@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GhostRoute — Auto Installer for Ubuntu/Debian
+# USDT GhostRoute — Auto Installer for Ubuntu/Debian
 set -euo pipefail
 
 RED='\033[0;31m'
@@ -22,7 +22,7 @@ PYTHON_MIN="3.10"
 
 echo ""
 echo "╔══════════════════════════════════════════╗"
-echo "║         GhostRoute — Installer           ║"
+echo "║      USDT GhostRoute — Installer         ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -109,7 +109,7 @@ SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=GhostRoute
+Description=USDT GhostRoute
 After=network.target mongod.service
 Requires=mongod.service
 

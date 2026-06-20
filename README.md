@@ -1,4 +1,4 @@
-# 👻 GhostRoute
+# 👻 USDT GhostRoute
 
 > **Bilingual / دو زبانه** — [English](#english) | [فارسی](#فارسی)
 
@@ -157,7 +157,7 @@ Paste:
 
 ```ini
 [Unit]
-Description=GhostRoute
+Description=USDT GhostRoute
 After=network.target mongod.service
 Requires=mongod.service
 
@@ -351,7 +351,7 @@ sudo nano /etc/systemd/system/iraniexchange.service
 
 ```ini
 [Unit]
-Description=GhostRoute
+Description=USDT GhostRoute
 After=network.target mongod.service
 Requires=mongod.service
 

@@ -5,6 +5,7 @@ After=network-online.target iraniexchange.service
 [Service]
 Type=simple
 WorkingDirectory=/root/iraniexchange
+EnvironmentFile=-/root/iraniexchange/.env
 ExecStart=/bin/bash /root/iraniexchange/deploy/tunnel.sh
 Restart=always
 RestartSec=5

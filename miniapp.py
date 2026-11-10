@@ -174,7 +174,7 @@ def create_app(bot_token, get_cycles):
 
     return app
 
-async def start_server(app, host="127.0.0.1", port=8080):
+async def start_server(app, host="127.0.0.1", port=18471):
 
     runner = web.AppRunner(app)
 

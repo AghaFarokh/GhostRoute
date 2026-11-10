@@ -50,7 +50,7 @@ A Telegram bot that routes USDT through multiple intermediate wallets on the **B
 
 ### 📱 Mini App
 
-A read-only Telegram Mini App (`miniapp.py` + `webapp/`) shows each user's cycles and progress. Requests are authenticated with Telegram `initData` (HMAC) and private keys are never exposed. It listens on `127.0.0.1:8080` and is published over HTTPS with a [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) tunnel (`deploy/tunnel.sh`, `deploy/iraniexchange-tunnel.service`). Set `WEBAPP_URL` in `.env` to use a fixed (named-tunnel) URL; otherwise the quick-tunnel URL is read from `tunnel_url.txt`. Run tests with `pip install aiohttp -r requirements-dev.txt && pytest`.
+A read-only Telegram Mini App (`miniapp.py` + `webapp/`) shows each user's cycles and progress. Requests are authenticated with Telegram `initData` (HMAC) and private keys are never exposed. It listens on `127.0.0.1:18471` and is published over HTTPS with a [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) tunnel (`deploy/tunnel.sh`, `deploy/iraniexchange-tunnel.service`). Set `WEBAPP_URL` in `.env` to use a fixed (named-tunnel) URL; otherwise the quick-tunnel URL is read from `tunnel_url.txt`. Run tests with `pip install aiohttp -r requirements-dev.txt && pytest`.
 
 ---
 

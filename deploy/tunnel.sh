@@ -4,7 +4,7 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PORT="${MINIAPP_PORT:-8080}"
+PORT="${MINIAPP_PORT:-18471}"
 URL_FILE="$DIR/tunnel_url.txt"
 
 rm -f "$URL_FILE"

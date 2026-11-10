@@ -68,7 +68,7 @@ ADMIN_IDS = {
     if uid.strip().isdigit()
 }
 
-MINIAPP_PORT = int(os.getenv("MINIAPP_PORT", "8080"))
+MINIAPP_PORT = int(os.getenv("MINIAPP_PORT", "18471"))
 
 BOT_VERSION = "v1.0.0"
 SOURCE_URL  = "https://github.com/AghaFarokh/GhostRoute"

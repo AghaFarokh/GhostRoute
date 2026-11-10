@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run a cloudflared quick tunnel to the mini app and publish its URL to
-# tunnel_url.txt (read by the bot). Used by iraniexchange-tunnel.service.
+# tunnel_url.txt (read by the bot). Run by the <service>-tunnel systemd unit (see install-tunnel.sh).
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

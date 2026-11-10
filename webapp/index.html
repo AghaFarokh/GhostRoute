@@ -12,76 +12,310 @@
     --hint: var(--tg-theme-hint-color, #8b93a1);
     --card: var(--tg-theme-secondary-bg-color, #1a1d24);
     --accent: var(--tg-theme-button-color, #6c8cff);
+    --accent-fg: var(--tg-theme-button-text-color, #fff);
+    --danger: #c0453f;
+    --ok: #2e9e5b;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg);
-         font: 15px/1.4 -apple-system, system-ui, sans-serif; }
-  h1 { font-size: 20px; margin: 0 0 12px; }
+  body { margin: 0; padding: 12px 12px 76px; background: var(--bg); color: var(--fg);
+         font: 15px/1.45 -apple-system, system-ui, sans-serif; }
+  h1 { font-size: 19px; margin: 0; }
+  h2 { font-size: 15px; margin: 14px 0 8px; color: var(--hint); font-weight: 600; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .card { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
-  .row { display: flex; justify-content: space-between; gap: 8px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .hint { color: var(--hint); font-size: 13px; }
-  .addr { font: 12px ui-monospace, monospace; word-break: break-all; color: var(--hint); }
-  .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; }
-  .badge.completed { background: #2e9e5b; }
-  .badge.failed, .badge.cancelled { background: #c0453f; }
+  .addr { font: 12px ui-monospace, monospace; word-break: break-all; color: var(--hint); direction: ltr; text-align: left; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-fg); }
+  .badge.completed { background: var(--ok); }
+  .badge.failed, .badge.cancelled { background: var(--danger); }
+  .badge.expired { background: #b8860b; }
   .bar { height: 6px; border-radius: 3px; background: rgba(128,128,128,.25); margin: 8px 0; overflow: hidden; }
   .bar > i { display: block; height: 100%; background: var(--accent); }
-  #msg { text-align: center; color: var(--hint); padding: 24px 0; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer;
+           background: var(--accent); color: var(--accent-fg); }
+  button.sec { background: rgba(128,128,128,.2); color: var(--fg); }
+  button.danger { background: var(--danger); color: #fff; }
+  button.sm { padding: 6px 10px; font-size: 13px; }
+  button.big { width: 100%; padding: 14px; font-weight: 600; }
+  button:disabled { opacity: .5; }
+  .stepper { display: flex; align-items: center; gap: 12px; }
+  .stepper b { min-width: 90px; text-align: center; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  input { width: 100%; font: 13px ui-monospace, monospace; padding: 10px; border-radius: 10px; margin: 6px 0;
+          border: 1px solid rgba(128,128,128,.4); background: var(--bg); color: var(--fg); direction: ltr; }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: var(--card);
+        padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); gap: 4px; }
+  nav button { flex: 1; background: transparent; color: var(--hint); padding: 8px 2px; font-size: 12px; }
+  nav button.on { color: var(--accent); font-weight: 700; }
+  #toast { position: fixed; top: 10px; left: 12px; right: 12px; z-index: 9; padding: 10px 12px; border-radius: 10px;
+           background: var(--card); border: 1px solid var(--accent); display: none; text-align: center; }
+  #toast.err { border-color: var(--danger); }
+  pre { white-space: pre-wrap; margin: 0; font: inherit; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 </style>
 </head>
 <body>
-<h1>👻 GhostRoute</h1>
-<div id="msg">Loading…</div>
-<div id="list"></div>
+<div id="toast"></div>
+<header><h1>👻 GhostRoute</h1><button class="sec sm" id="langBtn"></button></header>
+<main id="view"></main>
+<nav id="nav"></nav>
+
 <script>
 const tg = window.Telegram && Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-function el(tag, cls, text) {
+const I18N = {
+  en: {
+    home: "Home", cycles: "Cycles", info: "Info", admin: "Admin",
+    hops: "Hops", expiry: "Deposit window", min: "min",
+    wallet: "Destination wallet", walletUnset: "Not set", save: "Save", change: "Change",
+    start: "🚀 Start", cancelAll: "❌ Cancel all", started: "Cycle started! Keys were sent to your chat.",
+    noCycles: "No cycles yet.", hop: "Hop", cancel: "❌ Cancel", extend: "⏰ +1 hr", relaunch: "🔄 Relaunch",
+    confirm: "Are you sure?", source: "📂 Source code", loading: "Loading…", deposit: "Deposit address",
+    openInBot: "Open this page from the Telegram bot.", copy: "Copy", copied: "Copied",
+    users: "Users", master: "Master wallet", masterAddr: "Master address", masterKey: "Private key",
+    masterSaved: "Master wallet saved.", notSet: "❌ Not set", activeCycles: "Active cycles", totalCycles: "Total cycles",
+    totalUsers: "Users", all: "all", sendDetails: "🔍 Details → chat", detailsSent: "Details sent to your chat.",
+    keyWarn: "The key is sent over HTTPS to the server and stored encrypted.", done: "Done", user: "User",
+    cancelledAll: "Cancelled cycles: ", extended: "Extended until ",
+    e: {
+      unauthorized: "Open this page from the Telegram bot.", forbidden: "Admins only.",
+      invalid_address: "Invalid BSC address.", contract_not_allowed: "Contract addresses are not allowed.",
+      set_wallet_first: "Set the destination wallet first.", start_bot_first: "Send /start to the bot first.",
+      rate_limited: "Too fast — try again in a moment.", cycle_not_found: "Cycle not found.",
+      invalid_cycle: "Invalid cycle.", already_done: "Cycle already finished.", cannot_extend: "Cannot extend this cycle.",
+      only_expired: "Only expired cycles can be relaunched.", already_running: "Cycle is already running.",
+      invalid_key: "Invalid private key.", key_mismatch: "Address and key do not match.",
+      bad_request: "Invalid request.", net: "Network error.",
+    },
+  },
+  fa: {
+    home: "خانه", cycles: "چرخه‌ها", info: "راهنما", admin: "مدیر",
+    hops: "هاپ", expiry: "مهلت واریز", min: "دقیقه",
+    wallet: "کیف پول مقصد", walletUnset: "تنظیم نشده", save: "ذخیره", change: "تغییر",
+    start: "🚀 شروع", cancelAll: "❌ لغو همه", started: "چرخه شروع شد! کلیدها به چت شما ارسال شد.",
+    noCycles: "هنوز چرخه‌ای نیست.", hop: "هاپ", cancel: "❌ لغو", extend: "⏰ +۱ ساعت", relaunch: "🔄 راه‌اندازی مجدد",
+    confirm: "مطمئن هستید؟", source: "📂 کد منبع", loading: "در حال بارگذاری…", deposit: "آدرس واریز",
+    openInBot: "این صفحه را از داخل ربات تلگرام باز کنید.", copy: "کپی", copied: "کپی شد",
+    users: "کاربران", master: "کیف پول اصلی", masterAddr: "آدرس کیف پول اصلی", masterKey: "کلید خصوصی",
+    masterSaved: "کیف پول اصلی ذخیره شد.", notSet: "❌ تنظیم نشده", activeCycles: "چرخه‌های فعال", totalCycles: "کل چرخه‌ها",
+    totalUsers: "کاربران", all: "همه", sendDetails: "🔍 جزئیات → چت", detailsSent: "جزئیات به چت شما ارسال شد.",
+    keyWarn: "کلید از طریق HTTPS ارسال و به صورت رمزنگاری‌شده ذخیره می‌شود.", done: "انجام شد", user: "کاربر",
+    cancelledAll: "چرخه‌های لغو‌شده: ", extended: "تمدید تا ",
+    e: {
+      unauthorized: "این صفحه را از داخل ربات تلگرام باز کنید.", forbidden: "فقط مدیران.",
+      invalid_address: "آدرس BSC نامعتبر است.", contract_not_allowed: "آدرس قرارداد مجاز نیست.",
+      set_wallet_first: "ابتدا کیف پول مقصد را تنظیم کنید.", start_bot_first: "ابتدا /start را به ربات بفرستید.",
+      rate_limited: "خیلی سریع — کمی بعد دوباره تلاش کنید.", cycle_not_found: "چرخه پیدا نشد.",
+      invalid_cycle: "چرخه نامعتبر.", already_done: "چرخه قبلاً تمام شده.", cannot_extend: "این چرخه قابل تمدید نیست.",
+      only_expired: "فقط چرخه‌های منقضی قابل راه‌اندازی مجدد هستند.", already_running: "چرخه در حال اجراست.",
+      invalid_key: "کلید خصوصی نامعتبر.", key_mismatch: "آدرس و کلید مطابقت ندارند.",
+      bad_request: "درخواست نامعتبر.", net: "خطای شبکه.",
+    },
+  },
+};
+
+const S = { state: null, tab: "home", cycles: [], admin: { sum: null, cycles: [], users: [], filter: "all" }, busy: false };
+const L = () => I18N[(S.state && S.state.setup.lang) || "fa"];
+
+function el(tag, cls, text, attrs) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   if (text !== undefined) e.textContent = text;
+  if (attrs) Object.assign(e, attrs);
   return e;
 }
-
-function render(cycles) {
-  const list = document.getElementById("list");
-  const msg = document.getElementById("msg");
-  list.replaceChildren();
-  msg.textContent = cycles.length ? "" : "No cycles yet.";
-  for (const c of cycles) {
-    const card = el("div", "card");
-    const top = el("div", "row");
-    top.append(el("b", "", "#" + c.id.slice(-6)), el("span", "badge " + c.status, c.status));
-    const pct = c.hops ? Math.round(100 * c.current_hop / c.hops) : 0;
-    const bar = el("div", "bar");
-    const fill = document.createElement("i");
-    fill.style.width = pct + "%";
-    bar.append(fill);
-    card.append(
-      top, bar,
-      el("div", "hint", `Hop ${c.current_hop}/${c.hops} · ${c.created_at || ""}`),
-      el("div", "addr", "→ " + (c.destination || "?"))
-    );
-    list.append(card);
-  }
+function btn(label, fn, cls) {
+  const b = el("button", cls || "", label);
+  b.onclick = async () => { if (b.disabled) return; b.disabled = true; try { await fn(); } finally { b.disabled = false; } };
+  return b;
+}
+function toast(msg, err) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = err ? "err" : ""; t.style.display = "block";
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", 3500);
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(err ? "error" : "success");
+}
+function ask(msg) {
+  return new Promise(res => tg && tg.showConfirm ? tg.showConfirm(msg, res) : res(confirm(msg)));
 }
 
-async function load() {
-  const msg = document.getElementById("msg");
+async function api(method, path, body) {
   try {
-    const r = await fetch("/api/cycles", {
-      headers: { "X-Telegram-Init-Data": tg ? tg.initData : "" },
+    const r = await fetch(path, {
+      method,
+      headers: { "X-Telegram-Init-Data": tg ? tg.initData : "", "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (r.status === 401) { msg.textContent = "Open this page from the Telegram bot."; return; }
-    if (!r.ok) throw new Error(r.status);
-    render((await r.json()).cycles);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { const code = data.error || "bad_request"; throw new Error(L().e[code] || code); }
+    return data;
   } catch (e) {
-    msg.textContent = "Failed to load cycles.";
+    toast(e.message === "Failed to fetch" ? L().e.net : e.message, true);
+    throw e;
   }
 }
-load();
-setInterval(load, 15000);
+
+function fmt(iso) { return iso ? iso.replace("T", " ").replace(":00Z", " UTC").replace("Z", " UTC") : ""; }
+function stripMd(s) { return s.replace(/[*`_]/g, ""); }
+
+// ---------- views ----------
+function cycleCard(c, admin) {
+  const card = el("div", "card");
+  const top = el("div", "row");
+  top.append(el("b", "", "#" + c.id.slice(-6)), el("span", "badge " + c.status, c.status));
+  const bar = el("div", "bar"), fill = document.createElement("i");
+  fill.style.width = (c.hops ? Math.round(100 * c.current_hop / c.hops) : 0) + "%";
+  bar.append(fill);
+  card.append(top, bar, el("div", "hint", `${L().hop} ${c.current_hop}/${c.hops} · ${fmt(c.created_at)}`));
+  if (admin) card.append(el("div", "hint", `${L().user}: ${c.user_id}`));
+  card.append(el("div", "addr", "→ " + (c.destination || "?")));
+  if (c.status === "active" && c.deposit_address && !admin) {
+    card.append(el("div", "hint", L().deposit), el("div", "addr", c.deposit_address));
+  }
+  const acts = el("div", "actions");
+  const act = (action) => async () => {
+    if (action === "cancel" && !(await ask(L().confirm))) return;
+    const base = admin && action === "cancel" ? `/api/admin/cycles/${c.id}/cancel` : `/api/cycles/${c.id}/${action}`;
+    const r = await api("POST", base);
+    toast(r.expires_at ? L().extended + fmt(r.expires_at) : L().done);
+    await refresh();
+  };
+  if (c.status === "active" || c.status === "expired") {
+    acts.append(btn(L().cancel, act("cancel"), "sm danger"));
+    if (!admin) acts.append(btn(L().extend, act("extend"), "sm sec"));
+  }
+  if (c.status === "expired" && !admin) acts.append(btn(L().relaunch, act("relaunch"), "sm sec"));
+  if (admin) acts.append(btn(L().sendDetails, async () => { await api("POST", `/api/admin/cycles/${c.id}/details`); toast(L().detailsSent); }, "sm sec"));
+  if (acts.children.length) card.append(acts);
+  return card;
+}
+
+function viewHome(v) {
+  const s = S.state.setup, l = L();
+  const c1 = el("div", "card");
+  const stepper = (label, value, onMinus, onPlus) => {
+    const w = el("div", "row");
+    w.append(el("span", "", label));
+    const st = el("div", "stepper");
+    st.append(btn("➖", onMinus, "sec sm"), el("b", "", value), btn("➕", onPlus, "sec sm"));
+    w.append(st);
+    return w;
+  };
+  c1.append(
+    stepper(l.hops, String(s.hops), () => setSetup({ hops: s.hops - 1 }), () => setSetup({ hops: s.hops + 1 })),
+    el("div", "hint", " "),
+    stepper(l.expiry, `${s.expiry_minutes} ${l.min}`,
+      () => setSetup({ expiry_minutes: s.expiry_minutes - 30 }), () => setSetup({ expiry_minutes: s.expiry_minutes + 30 })),
+  );
+  const c2 = el("div", "card");
+  c2.append(el("div", "hint", l.wallet), el("div", "addr", s.destination || l.walletUnset));
+  const inp = el("input", "", undefined, { placeholder: "0x…", spellcheck: false, autocomplete: "off" });
+  c2.append(inp, btn(s.destination ? l.change : l.save, async () => {
+    if (!inp.value.trim()) return;
+    await setSetup({ destination: inp.value.trim() }); toast(l.done);
+  }, "sm"));
+  v.append(c1, c2, btn(l.start, async () => {
+    if (!(await ask(l.confirm))) return;
+    const r = await api("POST", "/api/cycles");
+    toast(l.started);
+    S.tab = "cycles"; await refresh();
+  }, "big"), el("div", "hint", " "), btn(l.cancelAll, async () => {
+    if (!(await ask(l.confirm))) return;
+    const r = await api("POST", "/api/cycles/cancel-all"); toast(l.cancelledAll + r.cancelled); await refresh();
+  }, "sec big"));
+}
+
+function viewCycles(v) {
+  if (!S.cycles.length) v.append(el("div", "hint", L().noCycles));
+  S.cycles.forEach(c => v.append(cycleCard(c, false)));
+}
+
+function viewInfo(v) {
+  const c = el("div", "card"); c.append(el("pre", "", stripMd(S.state.setup.info))); v.append(c);
+  const a = btn(L().source, async () => tg && tg.openLink ? tg.openLink(S.state.source_url) : window.open(S.state.source_url), "sec");
+  v.append(a, el("div", "hint", "  " + S.state.version));
+}
+
+function viewAdmin(v) {
+  const l = L(), a = S.admin, sum = a.sum;
+  if (sum) {
+    const c = el("div", "card");
+    c.append(el("div", "hint", l.master), el("div", "addr", sum.master_address || l.notSet),
+      el("div", "hint", `${l.totalUsers}: ${sum.users} · ${l.activeCycles}: ${sum.active} · ${l.totalCycles}: ${sum.total}`));
+    v.append(c);
+  }
+  const f = el("div", "card");
+  f.append(el("div", "hint", l.master));
+  const ai = el("input", "", undefined, { placeholder: l.masterAddr, spellcheck: false, autocomplete: "off" });
+  const ki = el("input", "", undefined, { placeholder: l.masterKey, type: "password", autocomplete: "off" });
+  f.append(ai, ki, el("div", "hint", l.keyWarn), btn(l.save, async () => {
+    await api("POST", "/api/admin/set-master", { address: ai.value, key: ki.value });
+    ai.value = ki.value = ""; toast(l.masterSaved); await refresh();
+  }, "sm"));
+  v.append(f, el("h2", "", l.cycles));
+  const chips = el("div", "chips");
+  ["all", "active", "expired", "completed", "failed", "cancelled"].forEach(st => {
+    chips.append(btn(st === "all" ? l.all : st, async () => { a.filter = st; await refresh(); }, "sm " + (a.filter === st ? "" : "sec")));
+  });
+  v.append(chips);
+  a.cycles.forEach(c => v.append(cycleCard(c, true)));
+  v.append(el("h2", "", `${l.users} (${a.users.length})`));
+  a.users.forEach(u => {
+    const c = el("div", "card");
+    c.append(el("b", "", u.name || String(u.user_id)),
+      el("div", "hint", `${u.user_id} · ${u.username ? "@" + u.username : "—"} · ${fmt(u.joined_at)}`));
+    v.append(c);
+  });
+}
+
+function render() {
+  const l = L(), st = S.state;
+  document.documentElement.lang = st.setup.lang;
+  document.documentElement.dir = st.setup.lang === "fa" ? "rtl" : "ltr";
+  document.getElementById("langBtn").textContent = st.setup.lang === "fa" ? "English" : "فارسی";
+  const tabs = [["home", l.home], ["cycles", l.cycles], ["info", l.info]];
+  if (st.is_admin) tabs.push(["admin", "🔑 " + l.admin]);
+  const nav = document.getElementById("nav"); nav.replaceChildren();
+  tabs.forEach(([k, label]) => {
+    const b = el("button", S.tab === k ? "on" : "", label);
+    b.onclick = async () => { S.tab = k; await refresh(); };
+    nav.append(b);
+  });
+  const v = document.getElementById("view"); v.replaceChildren();
+  ({ home: viewHome, cycles: viewCycles, info: viewInfo, admin: viewAdmin })[S.tab](v);
+}
+
+async function setSetup(changes) {
+  try {
+    S.state.setup = (await api("POST", "/api/setup", changes)).setup;
+    render();
+  } catch (e) { /* toast shown */ }
+}
+
+async function refresh() {
+  try {
+    S.state = Object.assign(S.state || {}, await api("GET", "/api/state"));
+    if (S.tab === "cycles") S.cycles = (await api("GET", "/api/cycles")).cycles;
+    if (S.tab === "admin" && S.state.is_admin) {
+      const q = S.admin.filter === "all" ? "" : "?status=" + S.admin.filter;
+      const [sum, cy, us] = await Promise.all([
+        api("GET", "/api/admin/summary"), api("GET", "/api/admin/cycles" + q), api("GET", "/api/admin/users")]);
+      Object.assign(S.admin, { sum, cycles: cy.cycles, users: us.users });
+    }
+    render();
+  } catch (e) {
+    if (!S.state || !S.state.setup) document.getElementById("view").textContent = L().e.unauthorized;
+  }
+}
+
+document.getElementById("langBtn").onclick = () =>
+  setSetup({ lang: S.state.setup.lang === "fa" ? "en" : "fa" });
+
+document.getElementById("view").textContent = I18N.fa.loading;
+refresh();
+setInterval(() => { if (!document.hidden && S.tab === "cycles") refresh(); }, 15000);
 </script>
 </body>
 </html>

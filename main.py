@@ -2272,26 +2272,19 @@ async def save_wallet(
 # START CYCLE
 # =========================================================
 
-@dp.callback_query(F.data == "start")
-async def start_cycle(
-    callback: CallbackQuery
-):
+async def launch_cycle(uid, chat_id):
+    """Create a cycle, send keys/QR to the chat and start monitoring.
 
-    if not rate_limit(callback.from_user.id):
-        return
+    Shared by the /start button and the mini app. Returns the cycle id.
+    """
 
-    ensure_user_setup(callback.from_user.id)
+    ensure_user_setup(uid)
 
-    setup = user_setups[
-        callback.from_user.id
-    ]
+    setup = user_setups[uid]
 
     if not setup["destination"]:
 
-        return await callback.answer(
-            t(callback.from_user.id, "set_wallet_first"),
-            show_alert=True
-        )
+        raise miniapp.ApiError("set_wallet_first")
 
     expiry_minutes = setup.get("expiry_minutes", 30)
 
@@ -2306,7 +2299,7 @@ async def start_cycle(
     cycle = await db.cycles.insert_one({
 
         "user_id":
-        callback.from_user.id,
+        uid,
 
         "wallets":
         wallets,
@@ -2330,7 +2323,7 @@ async def start_cycle(
         expires_at,
 
         "chat_id":
-        callback.message.chat.id
+        chat_id
     })
 
     cycle_id = str(cycle.inserted_id)
@@ -2353,19 +2346,17 @@ async def start_cycle(
     keys_text += f"Cycle ID: `{cycle_id}`"
 
     await bot.send_message(
-        callback.message.chat.id,
+        chat_id,
         keys_text,
         parse_mode="Markdown"
     )
 
     await send_qr(
-        callback.message.chat.id,
+        chat_id,
         wallets[0]["address"]
     )
 
     expires_str = expires_at.strftime("%Y-%m-%d %H:%M UTC")
-
-    uid = callback.from_user.id
 
     cycle_kb = InlineKeyboardMarkup(
         inline_keyboard=[[
@@ -2381,7 +2372,7 @@ async def start_cycle(
     )
 
     await bot.send_message(
-        callback.message.chat.id,
+        chat_id,
         f"{t(uid, 'waiting_deposit')}\n"
         f"{t(uid, 'expires_label')} {expires_str}",
         reply_markup=cycle_kb
@@ -2390,13 +2381,37 @@ async def start_cycle(
     task = asyncio.create_task(
 
         monitor_cycle(
-            callback.message.chat.id,
+            chat_id,
             cycle_id,
-            callback.from_user.id
+            uid
         )
     )
 
     monitor_tasks[cycle_id] = task
+
+    return cycle_id
+
+@dp.callback_query(F.data == "start")
+async def start_cycle(
+    callback: CallbackQuery
+):
+
+    if not rate_limit(callback.from_user.id):
+        return
+
+    try:
+
+        await launch_cycle(
+            callback.from_user.id,
+            callback.message.chat.id
+        )
+
+    except miniapp.ApiError:
+
+        return await callback.answer(
+            t(callback.from_user.id, "set_wallet_first"),
+            show_alert=True
+        )
 
     await callback.answer(
         t(callback.from_user.id, "started_alert")
@@ -3541,18 +3556,325 @@ async def recover_cycles():
 # MAIN
 # =========================================================
 
-async def get_user_cycles(user_id, limit):
+# =========================================================
+# MINI APP ACTIONS (same behaviour as the bot buttons/commands)
+# =========================================================
 
-    return await db.cycles.find(
-        {"user_id": user_id}
-    ).sort("created_at", -1).limit(limit).to_list(limit)
+def _object_id(cycle_id):
+
+    try:
+        return ObjectId(cycle_id)
+    except (InvalidId, TypeError):
+        raise miniapp.ApiError("invalid_cycle")
+
+async def _cancel_monitor(cycle_key):
+
+    task = monitor_tasks.get(cycle_key)
+
+    if task:
+        task.cancel()
+
+    active_cycles.pop(cycle_key, None)
+
+    monitor_tasks.pop(cycle_key, None)
+
+async def _refresh_panel(uid):
+    """Keep the chat panel in sync with changes made in the mini app."""
+
+    if uid in user_panels:
+
+        try:
+            await render_panel(uid)
+        except Exception as e:
+            logging.warning(f"Panel refresh failed {uid}: {e}")
+
+class BotActions:
+
+    version = BOT_VERSION
+
+    source_url = SOURCE_URL
+
+    @staticmethod
+    def is_admin(uid):
+
+        return is_admin(uid)
+
+    # ---------- user ----------
+
+    async def get_setup(self, uid):
+
+        ensure_user_setup(uid)
+
+        setup = user_setups[uid]
+
+        return {
+            "hops": setup["hops"],
+            "destination": setup["destination"],
+            "expiry_minutes": setup.get("expiry_minutes", 30),
+            "lang": setup.get("lang", "fa"),
+            "info": t(uid, "info_text"),
+        }
+
+    async def update_setup(self, uid, changes):
+
+        ensure_user_setup(uid)
+
+        dest = changes.pop("destination", None)
+
+        if dest is not None:
+
+            if not Web3.is_address(dest):
+                raise miniapp.ApiError("invalid_address")
+
+            checksum = Web3.to_checksum_address(dest)
+
+            code = await asyncio.to_thread(w3.eth.get_code, checksum)
+
+            if code != b'':
+                raise miniapp.ApiError("contract_not_allowed")
+
+            changes["destination"] = checksum
+
+        user_setups[uid].update(changes)
+
+        await _refresh_panel(uid)
+
+        return await self.get_setup(uid)
+
+    async def start_cycle(self, uid):
+
+        if not rate_limit(uid):
+            raise miniapp.ApiError("rate_limited", 429)
+
+        ensure_user_setup(uid)
+
+        if not user_setups[uid]["destination"]:
+            raise miniapp.ApiError("set_wallet_first")
+
+        # Keys are delivered via the chat: refuse if the bot can't reach it.
+        try:
+            await bot.send_chat_action(uid, "typing")
+        except Exception:
+            raise miniapp.ApiError("start_bot_first")
+
+        cycle_id = await launch_cycle(uid, uid)
+
+        cycle = await db.cycles.find_one({"_id": ObjectId(cycle_id)})
+
+        return miniapp.serialize_cycle(cycle)
+
+    async def list_cycles(self, uid, limit):
+
+        return await db.cycles.find(
+            {"user_id": uid}
+        ).sort("created_at", -1).limit(limit).to_list(limit)
+
+    async def cycle_action(self, uid, cycle_id, action):
+
+        oid = _object_id(cycle_id)
+
+        cycle = await db.cycles.find_one({"_id": oid})
+
+        # Not owned == not found, so ids can't be probed.
+        if not cycle or cycle.get("user_id") != uid:
+            raise miniapp.ApiError("cycle_not_found", 404)
+
+        status = cycle["status"]
+
+        if action == "cancel":
+
+            if status not in ("active", "expired"):
+                raise miniapp.ApiError("already_done")
+
+            await _cancel_monitor(cycle_id)
+
+            await db.cycles.update_one(
+                {"_id": oid}, {"$set": {"status": "cancelled"}}
+            )
+
+            return {"status": "cancelled"}
+
+        if action == "extend":
+
+            if status not in ("active", "expired"):
+                raise miniapp.ApiError("cannot_extend")
+
+            current = (
+                cycle_expiry.get(cycle_id)
+                or cycle.get("expires_at")
+                or datetime.utcnow()
+            )
+
+            if current < datetime.utcnow():
+                current = datetime.utcnow()
+
+            new_expiry = current + timedelta(hours=1)
+
+            cycle_expiry[cycle_id] = new_expiry
+
+            await db.cycles.update_one(
+                {"_id": oid},
+                {"$set": {"expires_at": new_expiry, "status": "active"}}
+            )
+
+            return {
+                "status": "active",
+                "expires_at": new_expiry.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+
+        # relaunch
+        if status != "expired":
+            raise miniapp.ApiError("only_expired")
+
+        if cycle_id in active_cycles:
+            raise miniapp.ApiError("already_running")
+
+        await db.cycles.update_one(
+            {"_id": oid}, {"$set": {"status": "active"}}
+        )
+
+        monitor_tasks[cycle_id] = asyncio.create_task(
+            monitor_cycle(cycle.get("chat_id", uid), cycle_id, uid)
+        )
+
+        return {"status": "active"}
+
+    async def cancel_all(self, uid):
+
+        async for cycle in db.cycles.find({"user_id": uid, "status": "active"}):
+            await _cancel_monitor(str(cycle["_id"]))
+
+        result = await db.cycles.update_many(
+            {"user_id": uid, "status": "active"},
+            {"$set": {"status": "cancelled"}}
+        )
+
+        return result.modified_count
+
+    # ---------- admin ----------
+
+    async def admin_summary(self):
+
+        config = await db.config.find_one({"type": "admin"})
+
+        return {
+            "master_address": config["master_address"] if config else None,
+            "users": await db.users.count_documents({}),
+            "active": await db.cycles.count_documents({"status": "active"}),
+            "total": await db.cycles.count_documents({}),
+        }
+
+    async def admin_cycles(self, status, limit):
+
+        query = {"status": status} if status else {}
+
+        return await db.cycles.find(query).sort(
+            "created_at", -1
+        ).limit(limit).to_list(limit)
+
+    async def admin_users(self, limit):
+
+        return await db.users.find().sort(
+            "joined_at", -1
+        ).limit(limit).to_list(limit)
+
+    async def admin_cancel(self, uid, cycle_id):
+
+        oid = _object_id(cycle_id)
+
+        cycle = await db.cycles.find_one({"_id": oid})
+
+        if not cycle:
+            raise miniapp.ApiError("cycle_not_found", 404)
+
+        if cycle["status"] not in ("active", "expired"):
+            raise miniapp.ApiError("already_done")
+
+        await _cancel_monitor(cycle_id)
+
+        await db.cycles.update_one(
+            {"_id": oid}, {"$set": {"status": "cancelled"}}
+        )
+
+        try:
+            await bot.send_message(
+                cycle["chat_id"],
+                f"🚫 Your cycle `{cycle_id}` was cancelled by admin.",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
+
+    async def admin_send_details(self, uid, cycle_id):
+        """Same output as /cycle: hop wallet keys go to the admin's chat only."""
+
+        cycle = await db.cycles.find_one({"_id": _object_id(cycle_id)})
+
+        if not cycle:
+            raise miniapp.ApiError("cycle_not_found", 404)
+
+        hops = len(cycle.get("wallets", []))
+
+        text = (
+            f"🔍 CYCLE DETAIL\n\n"
+            f"ID: `{cycle['_id']}`\n"
+            f"User: `{cycle['user_id']}`\n"
+            f"Status: {cycle['status']}\n"
+            f"Hops: {cycle.get('current_hop', 0)}/{hops}\n"
+            f"Destination: `{cycle.get('destination', '?')}`\n"
+            f"Created: {cycle['created_at'].strftime('%Y-%m-%d %H:%M UTC')}\n\n"
+            f"📦 HOP WALLETS\n\n"
+        )
+
+        for idx, w_info in enumerate(cycle.get("wallets", [])):
+
+            text += (
+                f"Hop {idx + 1}:\n"
+                f"Address: `{w_info['address']}`\n"
+                f"Key: `{decrypt_key(w_info['key'])}`\n\n"
+            )
+
+        if cycle.get("error"):
+            text += f"❌ Error: {cycle['error']}\n"
+
+        try:
+            await bot.send_message(uid, text[:3900], parse_mode="Markdown")
+        except Exception:
+            raise miniapp.ApiError("start_bot_first")
+
+    async def admin_set_master(self, uid, address, key):
+
+        if not Web3.is_address(address):
+            raise miniapp.ApiError("invalid_address")
+
+        address = Web3.to_checksum_address(address)
+
+        try:
+            account = w3.eth.account.from_key(key)
+        except Exception:
+            raise miniapp.ApiError("invalid_key")
+
+        if account.address.lower() != address.lower():
+            raise miniapp.ApiError("key_mismatch")
+
+        await db.config.update_one(
+            {"type": "admin"},
+            {"$set": {
+                "type": "admin",
+                "master_address": address,
+                "master_key": encrypt_key(key),
+            }},
+            upsert=True
+        )
+
+        logging.info(f"Master wallet set via mini app by {uid}")
 
 async def main():
 
     await setup_database()
 
     await miniapp.start_server(
-        miniapp.create_app(API_TOKEN, get_user_cycles),
+        miniapp.create_app(API_TOKEN, BotActions()),
         port=MINIAPP_PORT
     )
 

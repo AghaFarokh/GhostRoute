@@ -50,7 +50,7 @@ A Telegram bot that routes USDT through multiple intermediate wallets on the **B
 
 ### 📱 Mini App
 
-A read-only Telegram Mini App (`miniapp.py` + `webapp/`) shows each user's cycles and progress. Requests are authenticated with Telegram `initData` (HMAC) and private keys are never exposed. It listens on `127.0.0.1:18471` and is published over HTTPS with a [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) tunnel (`deploy/tunnel.sh`, `deploy/iraniexchange-tunnel.service`). Set `WEBAPP_URL` in `.env` to use a fixed (named-tunnel) URL; otherwise the quick-tunnel URL is read from `tunnel_url.txt`. Run tests with `pip install aiohttp -r requirements-dev.txt && pytest`.
+A read-only Telegram Mini App (`miniapp.py` + `webapp/`) shows each user's cycles and progress. Requests are authenticated with Telegram `initData` (HMAC) and private keys are never exposed. It listens on `127.0.0.1:18471` and is published over HTTPS with a [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) tunnel (`deploy/tunnel.sh`, `deploy/ghostroute-tunnel.service`). Set `WEBAPP_URL` in `.env` to use a fixed (named-tunnel) URL; otherwise the quick-tunnel URL is read from `tunnel_url.txt`. Install cloudflared first (the installer sets the tunnel up automatically if it is present). Run tests with `pip install -r requirements.txt -r requirements-dev.txt && pytest`.
 
 ---
 
@@ -77,7 +77,7 @@ The script will automatically:
 - ✅ Install all dependencies
 - ✅ Generate a Fernet encryption key
 - ✅ Prompt you for your Telegram bot token and admin ID(s)
-- ✅ Create `/root/iraniexchange/.env`
+- ✅ Create `/opt/ghostroute/.env`
 - ✅ Create and enable a `systemd` service that starts on boot
 
 ---
@@ -111,9 +111,9 @@ sudo systemctl enable mongod --now
 
 ```bash
 # Create directory and copy files
-sudo mkdir -p /root/iraniexchange
-sudo cp main.py lang.py requirements.txt /root/iraniexchange/
-cd /root/iraniexchange
+sudo mkdir -p /opt/ghostroute
+sudo cp -r main.py lang.py miniapp.py requirements.txt webapp deploy /opt/ghostroute/
+cd /opt/ghostroute
 
 # Create virtual environment
 python3 -m venv venv
@@ -135,7 +135,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 #### Step 4 — Create `.env`
 
 ```bash
-nano /root/iraniexchange/.env
+nano /opt/ghostroute/.env
 ```
 
 Paste and fill in:
@@ -150,13 +150,13 @@ ADMIN_IDS=123456789,987654321
 Secure the file:
 
 ```bash
-chmod 600 /root/iraniexchange/.env
+chmod 600 /opt/ghostroute/.env
 ```
 
 #### Step 5 — Create Systemd Service
 
 ```bash
-sudo nano /etc/systemd/system/iraniexchange.service
+sudo nano /etc/systemd/system/ghostroute.service
 ```
 
 Paste:
@@ -169,8 +169,8 @@ Requires=mongod.service
 
 [Service]
 Type=simple
-WorkingDirectory=/root/iraniexchange
-ExecStart=/root/iraniexchange/venv/bin/python /root/iraniexchange/main.py
+WorkingDirectory=/opt/ghostroute
+ExecStart=/opt/ghostroute/venv/bin/python /opt/ghostroute/main.py
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -184,14 +184,14 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable iraniexchange
-sudo systemctl start iraniexchange
+sudo systemctl enable ghostroute
+sudo systemctl start ghostroute
 
 # ✅ Check it's running
-sudo systemctl status iraniexchange
+sudo systemctl status ghostroute
 
 # 📜 Live logs
-sudo journalctl -u iraniexchange -f
+sudo journalctl -u ghostroute -f
 ```
 
 #### Step 7 — Set Master Wallet (in Telegram)
@@ -309,9 +309,9 @@ sudo systemctl enable mongod --now
 #### مرحله ۲ — آماده‌سازی پروژه
 
 ```bash
-sudo mkdir -p /root/iraniexchange
-sudo cp main.py lang.py requirements.txt /root/iraniexchange/
-cd /root/iraniexchange
+sudo mkdir -p /opt/ghostroute
+sudo cp -r main.py lang.py miniapp.py requirements.txt webapp deploy /opt/ghostroute/
+cd /opt/ghostroute
 
 python3 -m venv venv
 source venv/bin/activate
@@ -331,7 +331,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 #### مرحله ۴ — ساخت فایل `.env`
 
 ```bash
-nano /root/iraniexchange/.env
+nano /opt/ghostroute/.env
 ```
 
 محتوا را وارد کنید:
@@ -344,13 +344,13 @@ ADMIN_IDS=123456789,987654321
 ```
 
 ```bash
-chmod 600 /root/iraniexchange/.env
+chmod 600 /opt/ghostroute/.env
 ```
 
 #### مرحله ۵ — ساخت سرویس Systemd
 
 ```bash
-sudo nano /etc/systemd/system/iraniexchange.service
+sudo nano /etc/systemd/system/ghostroute.service
 ```
 
 محتوا:
@@ -363,8 +363,8 @@ Requires=mongod.service
 
 [Service]
 Type=simple
-WorkingDirectory=/root/iraniexchange
-ExecStart=/root/iraniexchange/venv/bin/python /root/iraniexchange/main.py
+WorkingDirectory=/opt/ghostroute
+ExecStart=/opt/ghostroute/venv/bin/python /opt/ghostroute/main.py
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -378,14 +378,14 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable iraniexchange
-sudo systemctl start iraniexchange
+sudo systemctl enable ghostroute
+sudo systemctl start ghostroute
 
 # ✅ بررسی وضعیت
-sudo systemctl status iraniexchange
+sudo systemctl status ghostroute
 
 # 📜 مشاهده لاگ زنده
-sudo journalctl -u iraniexchange -f
+sudo journalctl -u ghostroute -f
 ```
 
 #### مرحله ۷ — تنظیم کیف پول اصلی در تلگرام

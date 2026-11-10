@@ -16,8 +16,8 @@ die()     { echo -e "${RED}[ERR]${NC}  $*"; exit 1; }
 # ── Root check ────────────────────────────────────────────────────────────────
 [[ $EUID -ne 0 ]] && die "Run this script as root: sudo bash install.sh"
 
-INSTALL_DIR="/root/iraniexchange"
-SERVICE_NAME="iraniexchange"
+INSTALL_DIR="${INSTALL_DIR:-/opt/ghostroute}"
+SERVICE_NAME="${SERVICE_NAME:-ghostroute}"
 PYTHON_MIN="3.10"
 
 echo ""
@@ -60,9 +60,15 @@ mkdir -p "$INSTALL_DIR"
 
 # Copy files from current directory if running from source
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for f in main.py lang.py requirements.txt; do
+for f in main.py lang.py miniapp.py requirements.txt; do
     if [[ -f "$SCRIPT_DIR/$f" ]]; then
         cp "$SCRIPT_DIR/$f" "$INSTALL_DIR/$f"
+    fi
+done
+for d in webapp deploy; do
+    if [[ -d "$SCRIPT_DIR/$d" ]]; then
+        rm -rf "$INSTALL_DIR/$d"
+        cp -r "$SCRIPT_DIR/$d" "$INSTALL_DIR/$d"
     fi
 done
 
@@ -131,6 +137,14 @@ systemctl enable "${SERVICE_NAME}"
 systemctl restart "${SERVICE_NAME}"
 
 success "Systemd service '${SERVICE_NAME}' enabled and started."
+
+# ── 7b. Mini app tunnel (optional) ────────────────────────────────────────────
+if command -v cloudflared &>/dev/null; then
+    bash "$INSTALL_DIR/deploy/install-tunnel.sh" "$INSTALL_DIR" "$SERVICE_NAME"
+else
+    warn "cloudflared not found - the Telegram Mini App needs an HTTPS URL."
+    warn "Install cloudflared, then run: bash $INSTALL_DIR/deploy/install-tunnel.sh $INSTALL_DIR $SERVICE_NAME"
+fi
 
 # ── 8. Done ───────────────────────────────────────────────────────────────────
 echo ""

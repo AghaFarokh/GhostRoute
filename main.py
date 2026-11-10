@@ -25,6 +25,7 @@ from aiogram.types import (
     FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    WebAppInfo,
 )
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -37,6 +38,8 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
 import lang as _lang
+
+import miniapp
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -64,6 +67,8 @@ ADMIN_IDS = {
     for uid in os.getenv("ADMIN_IDS", "").split(",")
     if uid.strip().isdigit()
 }
+
+MINIAPP_PORT = int(os.getenv("MINIAPP_PORT", "8080"))
 
 BOT_VERSION = "v1.0.0"
 SOURCE_URL  = "https://github.com/AghaFarokh/GhostRoute"
@@ -1189,6 +1194,18 @@ def build_keyboard(user_id):
             callback_data="lang_toggle"
         )
     )
+
+    webapp_url = miniapp.get_webapp_url()
+
+    if webapp_url:
+
+        kb.row(
+
+            InlineKeyboardButton(
+                text=t(user_id, "btn_miniapp"),
+                web_app=WebAppInfo(url=webapp_url)
+            )
+        )
 
     if is_admin(user_id):
 
@@ -3524,9 +3541,20 @@ async def recover_cycles():
 # MAIN
 # =========================================================
 
+async def get_user_cycles(user_id, limit):
+
+    return await db.cycles.find(
+        {"user_id": user_id}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+
 async def main():
 
     await setup_database()
+
+    await miniapp.start_server(
+        miniapp.create_app(API_TOKEN, get_user_cycles),
+        port=MINIAPP_PORT
+    )
 
     await recover_cycles()
 

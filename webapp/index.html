@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GhostRoute</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #0f1115);
+    --fg: var(--tg-theme-text-color, #e8eaed);
+    --hint: var(--tg-theme-hint-color, #8b93a1);
+    --card: var(--tg-theme-secondary-bg-color, #1a1d24);
+    --accent: var(--tg-theme-button-color, #6c8cff);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg);
+         font: 15px/1.4 -apple-system, system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  .card { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; gap: 8px; }
+  .hint { color: var(--hint); font-size: 13px; }
+  .addr { font: 12px ui-monospace, monospace; word-break: break-all; color: var(--hint); }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; }
+  .badge.completed { background: #2e9e5b; }
+  .badge.failed, .badge.cancelled { background: #c0453f; }
+  .bar { height: 6px; border-radius: 3px; background: rgba(128,128,128,.25); margin: 8px 0; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  #msg { text-align: center; color: var(--hint); padding: 24px 0; }
+</style>
+</head>
+<body>
+<h1>👻 GhostRoute</h1>
+<div id="msg">Loading…</div>
+<div id="list"></div>
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function render(cycles) {
+  const list = document.getElementById("list");
+  const msg = document.getElementById("msg");
+  list.replaceChildren();
+  msg.textContent = cycles.length ? "" : "No cycles yet.";
+  for (const c of cycles) {
+    const card = el("div", "card");
+    const top = el("div", "row");
+    top.append(el("b", "", "#" + c.id.slice(-6)), el("span", "badge " + c.status, c.status));
+    const pct = c.hops ? Math.round(100 * c.current_hop / c.hops) : 0;
+    const bar = el("div", "bar");
+    const fill = document.createElement("i");
+    fill.style.width = pct + "%";
+    bar.append(fill);
+    card.append(
+      top, bar,
+      el("div", "hint", `Hop ${c.current_hop}/${c.hops} · ${c.created_at || ""}`),
+      el("div", "addr", "→ " + (c.destination || "?"))
+    );
+    list.append(card);
+  }
+}
+
+async function load() {
+  const msg = document.getElementById("msg");
+  try {
+    const r = await fetch("/api/cycles", {
+      headers: { "X-Telegram-Init-Data": tg ? tg.initData : "" },
+    });
+    if (r.status === 401) { msg.textContent = "Open this page from the Telegram bot."; return; }
+    if (!r.ok) throw new Error(r.status);
+    render((await r.json()).cycles);
+  } catch (e) {
+    msg.textContent = "Failed to load cycles.";
+  }
+}
+load();
+setInterval(load, 15000);
+</script>
+</body>
+</html>

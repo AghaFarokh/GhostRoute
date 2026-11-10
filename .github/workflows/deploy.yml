@@ -6,7 +6,18 @@ on:
       - master
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install aiohttp -r requirements-dev.txt
+      - run: pytest -q
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -31,13 +42,24 @@ jobs:
 
             # Pull latest code (only tracked files, .env is safe in .gitignore)
             git fetch origin master
-            git checkout origin/master -- main.py lang.py requirements.txt
+            git checkout origin/master -- main.py lang.py miniapp.py requirements.txt webapp deploy
 
             # Install any new dependencies
             ./venv/bin/pip install -q -r requirements.txt
+
+            # Cloudflared tunnel service for the mini app
+            chmod +x deploy/tunnel.sh
+            if command -v cloudflared >/dev/null; then
+              cp deploy/iraniexchange-tunnel.service /etc/systemd/system/
+              systemctl daemon-reload
+              systemctl enable iraniexchange-tunnel
+            fi
 
             # Restart the bot
             systemctl restart iraniexchange
 
             echo "Deploy complete. Status:"
             systemctl is-active iraniexchange
+            if command -v cloudflared >/dev/null; then
+              systemctl restart iraniexchange-tunnel
+            fi

@@ -1,0 +1,13 @@
+[Unit]
+Description=GhostRoute cloudflared tunnel
+After=network-online.target iraniexchange.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/iraniexchange
+ExecStart=/bin/bash /root/iraniexchange/deploy/tunnel.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -70,7 +70,7 @@ ADMIN_IDS = {
 
 MINIAPP_PORT = int(os.getenv("MINIAPP_PORT", "18471"))
 
-BOT_VERSION = "v1.0.0"
+BOT_VERSION = "v1.1.0"
 SOURCE_URL  = "https://github.com/AghaFarokh/GhostRoute"
 
 RPCS = [

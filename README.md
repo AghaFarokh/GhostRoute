@@ -1,6 +1,6 @@
 # 👻 USDT GhostRoute
 
-> **Version:** `v1.0.0` &nbsp;|&nbsp; **Bilingual / دو زبانه** — [English](#english) | [فارسی](#فارسی)
+> **Version:** `v1.1.0` &nbsp;|&nbsp; **Bilingual / دو زبانه** — [English](#english) | [فارسی](#فارسی)
 
 ---
 
@@ -31,6 +31,7 @@ A Telegram bot that routes USDT through multiple intermediate wallets on the **B
 - 🔒 **Encrypted key storage** — intermediate wallet private keys encrypted with Fernet before saving to MongoDB
 - 🌐 **Bilingual UI** — Persian (default) and English, toggle per user
 - 🛠️ **Admin panel** — view all/active/failed cycles, cancel cycles, set master wallet
+- 📱 **Telegram Mini App** — full graphical UI for everything the bot does (see [Mini App](#-mini-app))
 
 ---
 
@@ -50,7 +51,34 @@ A Telegram bot that routes USDT through multiple intermediate wallets on the **B
 
 ### 📱 Mini App
 
-A read-only Telegram Mini App (`miniapp.py` + `webapp/`) shows each user's cycles and progress. Requests are authenticated with Telegram `initData` (HMAC) and private keys are never exposed. It listens on `127.0.0.1:18471` and is published over HTTPS with a [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) tunnel (`deploy/tunnel.sh`, `deploy/ghostroute-tunnel.service`). Set `WEBAPP_URL` in `.env` to use a fixed (named-tunnel) URL; otherwise the quick-tunnel URL is read from `tunnel_url.txt`. Install cloudflared first (the installer sets the tunnel up automatically if it is present). Run tests with `pip install -r requirements.txt -r requirements-dev.txt && pytest`.
+A Telegram Mini App (`miniapp.py` + `webapp/`) with the **same functionality as the bot commands**, in a graphical UI (Persian/English, RTL, follows your Telegram theme):
+
+| Tab | What you can do |
+|-----|-----------------|
+| 🏠 **Home** | Set hops (2–10), deposit window (30 min–8 hr), destination wallet; start a route; cancel all |
+| 🔄 **Cycles** | Live progress per cycle, countdown, deposit address, cancel / +1 hr / relaunch |
+| ℹ️ **Info** | Help text, source link, version |
+| 🔑 **Admin** *(admins only)* | Stats, set master wallet, all cycles with status filters, cancel any cycle, send cycle details to chat, users list |
+
+**Security**
+- Every API call is authenticated with Telegram `initData` (HMAC-SHA256 with the bot token, 24 h max age); admin routes are checked server-side against `ADMIN_IDS`.
+- Users can only act on their own cycles.
+- Hop wallet private keys are never returned by the API — they are sent to the Telegram chat by the bot, exactly as before.
+
+**Hosting** — the app listens on `127.0.0.1:18471` (`MINIAPP_PORT`) and is published over HTTPS with a [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) tunnel:
+- If `cloudflared` is installed, `install.sh` sets up the tunnel service automatically (`deploy/install-tunnel.sh <install_dir> <service_name>`). The quick-tunnel URL is saved to `tunnel_url.txt` and the **👻 Mini App** button appears in the bot panel.
+- For a permanent URL (named tunnel / your own domain) set `WEBAPP_URL=https://…` in `.env`.
+
+**Tests** — `pip install -r requirements.txt -r requirements-dev.txt && pytest`
+
+**CI/CD** — `.github/workflows/deploy.yml` runs the tests and deploys over SSH on push to `master`. Required repository secrets: `SERVER_HOST`, `SSH_PRIVATE_KEY`, `DEPLOY_DIR`, `SERVICE_NAME`.
+
+---
+
+### 📝 Changelog
+
+- **v1.1.0** — Telegram Mini App with full bot parity (user + admin), cloudflared tunnel support, generic self-hostable installer/deploy, test suite + CI gate
+- **v1.0.0** — Initial release
 
 ---
 
@@ -256,6 +284,7 @@ sudo journalctl -u ghostroute -f
 - 🔒 **ذخیره‌سازی رمزنگاری‌شده** — کلیدهای خصوصی با Fernet رمزنگاری می‌شوند
 - 🌐 **رابط دو زبانه** — فارسی (پیش‌فرض) و انگلیسی، قابل تغییر برای هر کاربر
 - 🛠️ **پنل ادمین** — مشاهده و مدیریت چرخه‌ها، تنظیم کیف پول اصلی
+- 📱 **مینی‌اپ تلگرام** — رابط گرافیکی کامل برای تمام امکانات ربات
 
 ---
 
